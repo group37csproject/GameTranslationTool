@@ -5,6 +5,7 @@ from capture import WindowLister, capture_window_image
 from ocr_backend import ocr_image_data
 from translate_backend import translate_text
 from textractor_worker import TextractorWorker, get_pid_from_hwnd
+from text_overlay import TextOverlay
 
 APP_DIR = os.path.dirname(__file__)
 TRANSLATION_FILE = os.path.join(APP_DIR, "translations.json")
@@ -63,7 +64,8 @@ class PreviewWidget(QtWidgets.QLabel):
         self.qimage = None
         self.overlay_entries = []
         self.setStyleSheet("background-color: #202225; border-radius: 8px;")
-
+        self.text_overlay_color = QtGui.QColor(255, 255, 0)
+        
     def update_frame(self, pil_img):
         data = pil_img.tobytes("raw", "RGB")
         w, h = pil_img.size
@@ -73,11 +75,15 @@ class PreviewWidget(QtWidgets.QLabel):
     def update_overlay(self, entries):
         self.overlay_entries = entries
         self.update()
-
+        
+    def setTextColor(self, color: QtGui.QColor):
+        self.text_overlay_color = color
+        self.update()
+    
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
-
+        
         if self.qimage is not None:
             # Draw base image
             target = self.rect()
@@ -114,16 +120,17 @@ class PreviewWidget(QtWidgets.QLabel):
                 box_h = text_rect.height() + 12
 
                 # ---- Draw background box (auto-sized) ----
-                painter.setPen(QtGui.QPen(QtGui.QColor(255, 215, 0, 230), 2))
+                #painter.setPen(QtGui.QPen(QtGui.QColor(255, 215, 0, 230), 2))
+                painter.setPen(QtCore.Qt.NoPen)
                 painter.setBrush(QtGui.QColor(0, 0, 0, 160))
                 painter.drawRect(QtCore.QRect(tx, ty, box_w, box_h))
 
                 # ---- Draw text inside ----
                 text_area = QtCore.QRect(tx + 6, ty + 6, text_rect.width(), text_rect.height())
-                painter.setPen(QtGui.QColor(255, 255, 0))
+                painter.setPen(self.text_overlay_color)
                 painter.drawText(
                     text_area,
-                    QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop | QtCore.Qt.TextWordWrap,
+                     QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop | QtCore.Qt.TextWordWrap,
                     txt
                 )
 
@@ -186,6 +193,9 @@ class MainWindow(QtWidgets.QWidget):
         lang_row.addWidget(self.src_combo)
         lang_row.addWidget(QtWidgets.QLabel("To"))
         lang_row.addWidget(self.dst_combo)
+        self.text_color_btn = QtWidgets.QPushButton("Text Color")
+        lang_row.addWidget(self.text_color_btn)
+        self.text_color_btn.clicked.connect(self.text_overlay_color)
         right.addLayout(lang_row)
 
         self.ocr_table = QtWidgets.QTableWidget(0, 4)
@@ -283,6 +293,10 @@ class MainWindow(QtWidgets.QWidget):
 """
         QtWidgets.QMessageBox.information(self, "Help", text)
     
+    def text_overlay_color(self):
+        color = QtWidgets.QColorDialog.getColor()
+        if color.isValid():
+            self.preview.setTextColor(color)
     
     def start_worker(self):
         if not self.attached_hwnd:
