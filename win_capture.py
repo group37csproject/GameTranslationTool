@@ -26,9 +26,17 @@ if MAC:
 class WindowLister:
     @staticmethod
     def list_windows():
+        """
+        Enumerates all top level windows and builds a list usable by the UI.
+        It uses Win32 enumeration or platform calls to gather window handles and titles into a global collection.
+        """
         if WINDOWS:   
             wins = []
             def enum(hwnd, ctx):
+                """
+                Callback used by EnumWindows to handle each discovered window.
+                It filters based on visibility and non empty titles and stores accepted windows in the provided context.
+                """
                 if win32gui.IsWindowVisible(hwnd) and win32gui.GetWindowText(hwnd):
                     wins.append((hwnd, win32gui.GetWindowText(hwnd)))
             win32gui.EnumWindows(enum, None)
@@ -56,6 +64,10 @@ class WindowLister:
             
 
 def get_window_rect(hwnd):
+    """
+    Gets the bounding rectangle of the specified window in screen coordinates.
+    It calls the underlying system API to query the position and size and returns them as a tuple.
+    """
     try:
         rect = win32gui.GetClientRect(hwnd)
         lt = win32gui.ClientToScreen(hwnd, (rect[0], rect[1]))
@@ -71,6 +83,10 @@ def get_window_rect(hwnd):
             return None
 
 def capture_window_image(hwnd):
+    """
+    Captures a screenshot of the given window or full screen depending on the platform.
+    It uses GDI or Quartz to obtain pixel data, reshapes it into an array, and returns it as a PIL image.
+    """
     if WINDOWS:
         coords = get_window_rect(hwnd)
         if not coords:

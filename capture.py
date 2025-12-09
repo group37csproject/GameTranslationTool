@@ -17,9 +17,17 @@ _dxcam = None
 class WindowLister:
     @staticmethod
     def list_windows():
+        """
+        Lists visible top level windows that can be targeted by the tool.
+        It calls the platform specific enumeration routine and collects window handles and titles into a list.
+        """
         if WINDOWS:  
          wins = []
          def enum(hwnd, ctx):
+             """
+             Processes each window during Win32 enumeration and decides whether to keep it.
+             It checks visibility and window text, then appends suitable windows into the context list.
+             """
             if win32gui.IsWindowVisible(hwnd) and win32gui.GetWindowText(hwnd):
                 wins.append((hwnd, win32gui.GetWindowText(hwnd)))
          win32gui.EnumWindows(enum, None)
@@ -50,6 +58,10 @@ class WindowLister:
                 
 
 def get_window_rect(hwnd):
+    """
+    Returns the screen coordinates of the given window handle.
+    It uses platform specific APIs to query the window rectangle and converts it into a simple tuple.
+    """
     if not WINDOWS:
         return None
     try:
@@ -64,6 +76,10 @@ def get_window_rect(hwnd):
             return None
 
 def _bitblt_capture(hwnd):
+    """
+    Captures the contents of a window using the Win32 GDI BitBlt method.
+    It copies pixels from the window device context into a bitmap, converts the raw data into a NumPy array, and wraps it as a PIL image.
+    """
     rect = get_window_rect(hwnd)
     if not rect:
         return None
@@ -93,6 +109,10 @@ def _bitblt_capture(hwnd):
     return Image.fromarray(rgb)
 
 def _dxgi_capture(hwnd):
+    """
+    Attempts to capture the window contents using a DXGI or dxcam based screen grabber.
+    It grabs a frame, reshapes the buffer into an image array, and converts it to a PIL image for later processing.
+    """
     global _dxcam
     try:
         if _dxcam is None:
@@ -110,6 +130,10 @@ def _dxgi_capture(hwnd):
         return None
 
 def _looks_invalid(pil_img):
+    """
+    Heuristically checks whether a captured image is obviously invalid.
+    It inspects the size and color distribution of the image and returns True when the data likely does not represent a real frame.
+    """
     try:
         arr = np.asarray(pil_img)
         if arr.size == 0:
@@ -123,6 +147,10 @@ def _looks_invalid(pil_img):
     
 #capture helper for Mac
 def _mac_capture_window(window_id = None):
+    """
+    Captures a specific macOS window using Quartz APIs.
+    It calls CoreGraphics to create an image for the window, copies the pixel buffer into a NumPy array, and converts it into a PIL RGBA image.
+    """
     try:
         import Quartz.CoreGraphics as CG
         #after importing the right libraries, capture an image of the window of your choice
@@ -159,6 +187,10 @@ def _mac_capture_window(window_id = None):
     
     
 def capture_window_image(hwnd):
+    """
+    Captures an image of the target window using the best method available for the current platform.
+    On Windows it tries BitBlt and DXGI, on macOS it uses Quartz, and it returns the first valid PIL image or None if all methods fail.
+    """
     if WINDOWS:
         img = _bitblt_capture(hwnd)
         if img is not None and not _looks_invalid(img):

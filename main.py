@@ -24,6 +24,10 @@ class CaptureWorker(QtCore.QThread):
     prefer_lang = "auto"
 
     def __init__(self, hwnd, interval_ms=120, ocr_every_ms=1200,
+        """
+        Sets up the background capture worker with a target window, capture interval, and OCR interval.
+        It stores these parameters, converts milliseconds to seconds, and initializes state flags controlling whether OCR is enabled.
+        """
                  enable_ocr=True, parent=None):
         super().__init__(parent)
         self.hwnd = hwnd
@@ -33,6 +37,10 @@ class CaptureWorker(QtCore.QThread):
         self._running = False
 
     def run(self):
+        """
+        Runs the capture loop that periodically grabs frames from the game window.
+        It emits each new frame via a signal and, at a slower rate, runs OCR on the current frame and emits the text results when enabled.
+        """
         self._running = True
         last_ocr = 0.0
         while self._running:
@@ -55,12 +63,20 @@ class CaptureWorker(QtCore.QThread):
                 time.sleep(sleep_t)
 
     def stop(self):
+        """
+        Requests the capture thread to stop running.
+        It sets the internal running flag to False and waits briefly for the loop to exit cleanly.
+        """
         self._running = False
         self.wait(2000)
 
 
 class PreviewWidget(QtWidgets.QLabel):
     def __init__(self, parent=None):
+        """
+        Configures the preview widget that displays the captured game image and text overlays.
+        It initializes the stored QImage, overlay entries list, and default text color used when painting.
+        """
         super().__init__(parent)
         self.setMinimumSize(720, 405)
         self.setScaledContents(True)
@@ -70,20 +86,36 @@ class PreviewWidget(QtWidgets.QLabel):
         self.text_overlay_color = QtGui.QColor(255, 255, 0)
         
     def update_frame(self, pil_img):
+        """
+        Updates the preview with the latest captured frame.
+        It converts a PIL image into a QImage, stores it, and triggers a repaint so the new frame appears in the widget.
+        """
         data = pil_img.tobytes("raw", "RGB")
         w, h = pil_img.size
         self.qimage = QtGui.QImage(data, w, h, QtGui.QImage.Format.Format_RGB888)
         self.update()
 
     def update_overlay(self, entries):
+        """
+        Replaces the current overlay entries with a new list of OCR or translated texts.
+        It stores the entries and requests a repaint so bounding boxes and text are redrawn on top of the image.
+        """
         self.overlay_entries = entries
         self.update()
         
     def setTextColor(self, color: QtGui.QColor):
+        """
+        Changes the color used for drawing overlay text and boxes.
+        It saves the new QColor and triggers a repaint so subsequent draws use the updated style.
+        """
         self.text_overlay_color = color
         self.update()
     
     def paintEvent(self, event):
+        """
+        Custom paints the preview by drawing the scaled background image and all overlay items.
+        It computes scale factors between the original capture size and widget size, then draws rectangles and text at the correctly transformed positions.
+        """
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
         
@@ -143,6 +175,10 @@ class MainWindow(QtWidgets.QWidget):
     translate_signal = QtCore.Signal(str, str, str)
 
     def __init__(self):
+        """
+        Builds the main application window, laying out controls for capture, OCR, translation, and text hooking.
+        It creates widgets, connects signals and slots, loads existing translations, and initializes application state.
+        """
         super().__init__()
         self.translate_signal.connect(self.translate_and_update)
 
@@ -262,6 +298,10 @@ class MainWindow(QtWidgets.QWidget):
         self.refresh_windows()
 
     def refresh_windows(self):
+        """
+        Refreshes the drop down list of available windows that can be attached.
+        It calls the capture module to list windows and repopulates the combo box with the latest handles and titles.
+        """
         self.win_list.clear()
         wins = WindowLister.list_windows()
         for hwnd, title in wins:
@@ -269,6 +309,10 @@ class MainWindow(QtWidgets.QWidget):
         self.status.setText(f"Found {len(wins)} windows")
 
     def attach_window(self):
+        """
+        Attaches the tool to the user selected window entry.
+        It resolves the selected handle, stores it as the active target, and updates status text and button states accordingly.
+        """
         idx = self.win_list.currentIndex()
         if idx < 0:
             return
@@ -281,6 +325,10 @@ class MainWindow(QtWidgets.QWidget):
             self.start_textractor()
             
     def help_bar(self):
+        """
+        Shows a help or information dialog for the user.
+        It explains how to use key parts of the interface and provides guidance without leaving the program.
+        """
         text = """
         Game Translation Tool Help:
         - Click "Refresh Windows" from the top bar to list all available windows.
@@ -298,11 +346,19 @@ class MainWindow(QtWidgets.QWidget):
         QtWidgets.QMessageBox.information(self, "Help", text)
     
     def text_overlay_color(self):
+        """
+        Opens a color picker so the user can choose a new text overlay color.
+        It updates the PreviewWidget with the selected color and optionally records the choice for future sessions.
+        """
         color = QtWidgets.QColorDialog.getColor()
         if color.isValid():
             self.preview.setTextColor(color)
     
     def start_worker(self):
+        """
+        Starts or restarts the CaptureWorker with the current UI settings.
+        It stops any existing worker, creates a new one with the selected intervals and OCR toggle, connects its signals, and starts the thread.
+        """
         if not self.attached_hwnd:
             self.status.setText("No window attached.")
             return
@@ -325,6 +381,10 @@ class MainWindow(QtWidgets.QWidget):
         self.status.setText("Real-time preview started.")
 
     def stop_worker(self):
+        """
+        Stops the running CaptureWorker if it exists.
+        It calls the worker stop method, clears the reference, and updates the status to show that real time preview is off.
+        """
         if self.worker:
             self.worker.stop()
             self.worker = None
@@ -333,6 +393,10 @@ class MainWindow(QtWidgets.QWidget):
             self.textractor_worker = None
 
     def on_realtime_changed(self, state):
+        """
+        Handles the state change of the real time preview checkbox.
+        It starts the capture worker when the box is checked and stops it when the box is unchecked.
+        """
         if state == QtCore.Qt.Checked:
             self.start_worker()
         else:
@@ -340,10 +404,18 @@ class MainWindow(QtWidgets.QWidget):
             self.status.setText("Real-time preview stopped.")
 
     def on_interval_changed(self, *_):
+        """
+        Responds to changes in the capture interval spin box.
+        It restarts the capture worker so that the new interval takes effect immediately.
+        """
         if self.worker:
             self.start_worker()
 
     def start_textractor(self):
+        """
+        Starts the text hook worker for the currently attached window using either Win32 PID resolution or a direct id.
+        It constructs a TextractorWorker or Frida based worker, connects its text_ready signal, starts the thread, and updates the status label.
+        """
         if not self.attached_hwnd:
             self.status.setText("No window attached for Textractor.")
             return
@@ -382,12 +454,20 @@ class MainWindow(QtWidgets.QWidget):
             return
             
     def stop_textractor(self):
+        """
+        Stops the active text hook worker if one is running.
+        It calls the worker stop method, clears the reference, and updates the status message so the user sees that hooking has stopped.
+        """
         if self.textractor_worker:
             self.textractor_worker.stop()
             self.textractor_worker = None
             self.status.setText("Textractor hook stopped.")
 
     def on_hook_mode_changed(self, state):
+        """
+        Handles changes to the text hook mode option in the UI.
+        It adjusts internal flags that control whether new text replaces or appends and how it is shown and translated.
+        """
         if self.worker:
             self.start_worker()
 
@@ -397,6 +477,10 @@ class MainWindow(QtWidgets.QWidget):
             self.stop_textractor()
 
     def on_hook_text(self, text: str):
+        """
+        Receives new text captured from the game hook thread.
+        It adds the text to the display area, may trigger translation, and keeps internal records so translations can be saved or reapplied.
+        """
         src_lang = self.src_combo.currentData()
         dst_lang = self.dst_combo.currentData()
         try:
@@ -423,6 +507,10 @@ class MainWindow(QtWidgets.QWidget):
         self.status.setText("Hooked line received & translated.")
 
     def on_frame_ready(self, pil_img):
+        """
+        Receives a new captured frame from the CaptureWorker thread.
+        It forwards the image to the PreviewWidget so the preview updates to the latest game view.
+        """
         src_lang = self.src_combo.currentData()
         dst_lang = self.dst_combo.currentData()
 
@@ -454,6 +542,10 @@ class MainWindow(QtWidgets.QWidget):
         self.preview.update_frame(pil_img)
 
     def on_ocr_ready(self, entries):
+        """
+        Receives OCR results for the current frame.
+        It repopulates the OCR table with new text rows, updates an internal results list, and refreshes the overlay to match.
+        """
         self.latest_ocr = entries
         self.ocr_results = []
         self.ocr_table.setRowCount(0)
@@ -473,6 +565,10 @@ class MainWindow(QtWidgets.QWidget):
             })
 
     def on_select(self):
+        """
+        Handles the user selecting a row in the OCR results table.
+        It loads that row's source text and existing translation into the edit controls so the user can modify or translate it.
+        """
         idxs = self.ocr_table.selectionModel().selectedRows()
         if not idxs:
             return
@@ -480,6 +576,10 @@ class MainWindow(QtWidgets.QWidget):
         self.edit.setPlainText(self.ocr_results[r].get("translation", ""))
 
     def apply_translation(self):
+        """
+        Applies the current translation text to the selected OCR entry.
+        It writes the new translation into the table and internal data structure so the change is reflected in overlays and saved output.
+        """
         idxs = self.ocr_table.selectionModel().selectedRows()
         if not idxs:
             self.status.setText("No selection.")
@@ -491,19 +591,35 @@ class MainWindow(QtWidgets.QWidget):
         self.status.setText("Applied translation to selected.")
 
     def save_translations(self):
+        """
+        Saves all current translations and their metadata to the translations JSON file.
+        It serializes the in memory translation list and writes it to disk so work is preserved between sessions.
+        """
         with open(TRANSLATION_FILE, "w", encoding="utf-8") as f:
             json.dump(self.ocr_results, f, ensure_ascii=False, indent=2)
         self.status.setText(f"Saved translations to {TRANSLATION_FILE}")
 
     def on_src_lang_changed(self, *_):
+        """
+        Handles changes to the source language selection in the UI.
+        It updates internal configuration so future translation requests use the selected source language code.
+        """
         if self.worker:
             self.start_worker()
 
     def closeEvent(self, e):
+        """
+        Intercepts the window close event to perform cleanup.
+        It stops capture and hook workers if they are running and then delegates to the base class closeEvent implementation.
+        """
         self.stop_worker()
         return super().closeEvent(e)
 
     def translate_and_update(self, src, dst, txt):
+        """
+        Translates the given text from the specified source language to the destination language.
+        It calls translate_text, stores the result in last_translation, and leaves it ready for insertion into the UI or data structures.
+        """
         trans = translate_text(src, dst, txt)
         self.last_translation = trans
 

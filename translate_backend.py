@@ -76,6 +76,10 @@ headers = {
 }
 
 def google_translate(text, src="auto", dst="en"):
+    """
+    Sends the given text to the Google Translate mobile web endpoint and parses the response.
+    It builds a query URL, fetches the HTML, extracts the translated string from specific tags, and safely falls back when parsing fails.
+    """
     if not text.strip():
         return ""
 
@@ -99,6 +103,10 @@ def google_translate(text, src="auto", dst="en"):
 
 
 def translate_text(src_lang, dst_lang, text):
+    """
+    Provides a cached translation helper between two language codes.
+    It looks up the text in an in memory cache and only calls google_translate when there is no cached result, storing the new translation afterward.
+    """
     key = f"{src_lang}|{dst_lang}|{text}"
     if key in _translation_cache:
         return _translation_cache[key]

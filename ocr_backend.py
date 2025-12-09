@@ -13,6 +13,10 @@ _last_debug_save = 0.0
 
 
 def ocr_image_data(pil_image, prefer_lang_code="auto"):
+    """
+    Runs OCR on the given image bytes and returns detected text entries.
+    It decodes the bytes into an image, passes it through RapidOCR, converts polygon boxes into simple rectangles, and builds a list of text and bounding box dictionaries.
+    """
     global _last_debug_save
 
     now = time.time()
