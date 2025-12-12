@@ -23,12 +23,11 @@ class CaptureWorker(QtCore.QThread):
     ocr_ready = QtCore.Signal(list)
     prefer_lang = "auto"
 
-    def __init__(self, hwnd, interval_ms=120, ocr_every_ms=1200,
+    def __init__(self, hwnd, interval_ms=120, ocr_every_ms=1200, enable_ocr=True, parent=None):
         """
         Sets up the background capture worker with a target window, capture interval, and OCR interval.
         It stores these parameters, converts milliseconds to seconds, and initializes state flags controlling whether OCR is enabled.
         """
-                 enable_ocr=True, parent=None):
         super().__init__(parent)
         self.hwnd = hwnd
         self.interval = max(60, int(interval_ms)) / 1000.0

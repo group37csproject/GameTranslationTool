@@ -24,10 +24,10 @@ class WindowLister:
         if WINDOWS:  
          wins = []
          def enum(hwnd, ctx):
-             """
-             Processes each window during Win32 enumeration and decides whether to keep it.
-             It checks visibility and window text, then appends suitable windows into the context list.
-             """
+            """
+            Processes each window during Win32 enumeration and decides whether to keep it.
+            It checks visibility and window text, then appends suitable windows into the context list.
+            """
             if win32gui.IsWindowVisible(hwnd) and win32gui.GetWindowText(hwnd):
                 wins.append((hwnd, win32gui.GetWindowText(hwnd)))
          win32gui.EnumWindows(enum, None)
